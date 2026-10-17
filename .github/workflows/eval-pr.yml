@@ -1,4 +1,4 @@
-﻿# Agent-side evaluation harness. Lives on a fork only; never proposed upstream.
+# Agent-side evaluation harness. Lives on a fork only; never proposed upstream.
 # Decides behavioural questions the upstream diff cannot: build main and every named PR head,
 # then run one shared fixture battery against all of them.
 name: eval-pr
@@ -98,6 +98,15 @@ jobs:
             ( cd compiler && cargo build -p hyb --quiet )
             cp compiler/target/debug/hyb "/tmp/hyb-${N}"
             bash /tmp/ci-assets/battery.sh "/tmp/hyb-${N}" "pr${N}" /tmp/ci-assets/fixtures/425
+            echo "== 460 family for pr${N} =="
+            for d in 460 460b 460c 460d 460w; do
+              bash /tmp/ci-assets/battery.sh "/tmp/hyb-${N}" "pr${N}-${d}" "/tmp/ci-assets/fixtures/${d}"
+            done
+            echo "== 399 family for pr${N} =="
+            bash /tmp/ci-assets/battery.sh "/tmp/hyb-${N}" "pr${N}-i399" /tmp/ci-assets/fixtures/399
+            bash /tmp/ci-assets/battery.sh "/tmp/hyb-${N}" "pr${N}-i399b" /tmp/ci-assets/fixtures/399b
+            echo "== hy-check tests for pr${N} =="
+            ( cd compiler && cargo test -p hy-check --quiet 2>&1 | tail -12 )
             echo "== 429 verdict for pr${N} =="
             bash /tmp/ci-assets/battery.sh "/tmp/hyb-${N}" "pr${N}-i429" /tmp/ci-assets/fixtures/429
             echo "== 429 run for pr${N} =="
