@@ -41,6 +41,13 @@ jobs:
         env:
           PR_TARGET: ${{ github.event.inputs.pr }}
 
+      - name: Stash harness assets
+        run: |
+          # The fixture set lives only on this branch; checking out a PR head would remove it.
+          rm -rf /tmp/ci-assets
+          cp -r ci /tmp/ci-assets
+          ls /tmp/ci-assets/fixtures/425 | wc -l
+
       - name: Build main and run battery
         run: |
           set -e
@@ -48,7 +55,7 @@ jobs:
           git log -1 --format='MAIN %h %ci %s'
           ( cd compiler && cargo build -p hyb --quiet )
           cp compiler/target/debug/hyb /tmp/hyb-main
-          bash ci/battery.sh /tmp/hyb-main main
+          bash /tmp/ci-assets/battery.sh /tmp/hyb-main main /tmp/ci-assets/fixtures/425
 
       - name: Build each PR head and run battery
         if: steps.target.outputs.prs != ''
@@ -64,5 +71,5 @@ jobs:
             git diff --stat "upmain"..."prhead-${N}" | tail -12
             ( cd compiler && cargo build -p hyb --quiet )
             cp compiler/target/debug/hyb "/tmp/hyb-${N}"
-            bash ci/battery.sh "/tmp/hyb-${N}" "pr${N}"
+            bash /tmp/ci-assets/battery.sh "/tmp/hyb-${N}" "pr${N}" /tmp/ci-assets/fixtures/425
           done
