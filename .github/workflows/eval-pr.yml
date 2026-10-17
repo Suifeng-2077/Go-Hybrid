@@ -34,6 +34,16 @@ jobs:
           curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.99.0
           echo "/usr/local/go/bin:$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
+      - name: Resolve target
+        id: target
+        run: |
+          # PR number comes from the dispatch input, else from a committed .ci-pr file,
+          # so a push can drive an evaluation without needing the file on the default branch.
+          N="${PR_TARGET}"
+          if [ -z "$N" ] && [ -f .ci-pr ]; then N="$(tr -dc '0-9' < .ci-pr)"; fi
+          echo "pr=$N" >> "$GITHUB_OUTPUT"
+          echo "evaluating: ${N:-baseline only}"
+
       - name: Baseline on main
         run: |
           set -e
@@ -48,11 +58,11 @@ jobs:
           fi
 
       - name: Evaluate PR head
-        if: env.PR_TARGET != ''
+        if: steps.target.outputs.pr != ''
         run: |
           set -e
           export PATH="$HOME/.cargo/bin:/usr/local/go/bin:$PATH"
-          N="$PR_TARGET"
+          N="${{ steps.target.outputs.pr }}"
           git fetch --no-tags origin "+refs/pull/${N}/head:prhead"
           git checkout -q prhead
           git log -1 --format='PR %h %ci %s'
