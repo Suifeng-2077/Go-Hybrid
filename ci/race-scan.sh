@@ -37,10 +37,15 @@ for f in "$CORPUS"/*.hy; do
     continue
   fi
   out=$( cd "$d" && GORACE="halt_on_error=1" timeout 20 ./prog 2>&1 )
+  # A concurrent map write is a runtime fatal, not a -race report; both are unsoundness.
   if printf '%s' "$out" | grep -q 'DATA RACE'; then
     race=$((race + 1))
     echo "  $base *** DATA RACE ***"
     printf '%s\n' "$out" | grep -A3 'DATA RACE' | head -12 | sed 's/^/      /'
+  elif printf '%s' "$out" | grep -qE 'fatal error: (concurrent map|concurrent map writes|concurrent map read)'; then
+    race=$((race + 1))
+    echo "  $base *** CONCURRENT MAP WRITE (runtime fatal) ***"
+    printf '%s\n' "$out" | grep -m1 -A2 'fatal error' | sed 's/^/      /'
   else
     ok=$((ok + 1))
     echo "  $base clean"
