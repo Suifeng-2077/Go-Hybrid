@@ -24,7 +24,8 @@ for f in "$CORPUS"/*.hy; do
 
   d="$WORK/$base"
   mkdir -p "$d"
-  if ! "$HYB" build "$f" -o "$d" --emit-go >"$d/emit.log" 2>&1; then
+  # --emit-go writes "<out_path>.go", so -o must be a file path inside the module dir.
+  if ! "$HYB" build "$f" -o "$d/prog" --emit-go >"$d/emit.log" 2>&1; then
     buildfail=$((buildfail + 1))
     echo "  $base EMIT-FAIL"
     continue
