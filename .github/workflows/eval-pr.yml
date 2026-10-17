@@ -56,6 +56,8 @@ jobs:
           ( cd compiler && cargo build -p hyb --quiet )
           cp compiler/target/debug/hyb /tmp/hyb-main
           bash /tmp/ci-assets/battery.sh /tmp/hyb-main main /tmp/ci-assets/fixtures/425
+          echo "== race-scan on main =="
+          bash /tmp/ci-assets/race-scan.sh /tmp/hyb-main
 
       - name: Build each PR head and run battery
         if: steps.target.outputs.prs != ''
