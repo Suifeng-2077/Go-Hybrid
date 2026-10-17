@@ -1,6 +1,6 @@
 # Agent-side evaluation harness. Lives on a fork only; never proposed upstream.
-# Purpose: give the triage work a real build so verdicts are behavioural instead of textual.
-# Mirrors the pins from the upstream `compiler` job: Go 1.26.9 and rust 1.99.0.
+# Decides behavioural questions the upstream diff cannot: build main and every named PR head,
+# then run one shared fixture battery against all of them.
 name: eval-pr
 
 on:
@@ -9,17 +9,14 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: 'PR number to evaluate (blank = baseline only)'
+        description: 'space separated PR numbers (blank = baseline only)'
         required: false
         default: ''
-
-env:
-  PR_TARGET: ${{ github.event.inputs.pr }}
 
 jobs:
   evaluate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,44 +31,38 @@ jobs:
           curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.99.0
           echo "/usr/local/go/bin:$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      - name: Resolve target
+      - name: Resolve targets
         id: target
         run: |
-          # PR number comes from the dispatch input, else from a committed .ci-pr file,
-          # so a push can drive an evaluation without needing the file on the default branch.
           N="${PR_TARGET}"
-          if [ -z "$N" ] && [ -f .ci-pr ]; then N="$(tr -dc '0-9' < .ci-pr)"; fi
-          echo "pr=$N" >> "$GITHUB_OUTPUT"
+          if [ -z "$N" ] && [ -f .ci-pr ]; then N="$(tr '\n' ' ' < .ci-pr)"; fi
+          echo "prs=$N" >> "$GITHUB_OUTPUT"
           echo "evaluating: ${N:-baseline only}"
+        env:
+          PR_TARGET: ${{ github.event.inputs.pr }}
 
-      - name: Baseline on main
+      - name: Build main and run battery
         run: |
           set -e
           export PATH="$HOME/.cargo/bin:/usr/local/go/bin:$PATH"
           git log -1 --format='MAIN %h %ci %s'
-          cd compiler && cargo build -p hyb --quiet && cd ..
-          echo "== corpus on main =="
-          python3 tools/corpus_harness.py --bin compiler/target/debug/hyb | tail -8
-          if [ -f tools/differential_loop.py ]; then
-            echo "== differential loop present =="
-            python3 tools/differential_loop.py --help 2>&1 | head -12 || true
-          fi
+          ( cd compiler && cargo build -p hyb --quiet )
+          cp compiler/target/debug/hyb /tmp/hyb-main
+          bash ci/battery.sh /tmp/hyb-main main
 
-      - name: Evaluate PR head
-        if: steps.target.outputs.pr != ''
+      - name: Build each PR head and run battery
+        if: steps.target.outputs.prs != ''
         run: |
           set -e
           export PATH="$HOME/.cargo/bin:/usr/local/go/bin:$PATH"
-          N="${{ steps.target.outputs.pr }}"
           UP=https://github.com/limitlessprojects/Go-Hybrid.git
-          # refs/pull/N/head exists only on the upstream repo; origin here is the fork.
-          git fetch --no-tags "$UP" "+refs/pull/${N}/head:prhead" "main:upmain"
-          git checkout -q prhead
-          git log -1 --format='PR %h %ci %s'
-          echo "== files changed vs upstream main =="
-          git diff --stat upmain...prhead | tail -20
-          cd compiler && cargo build -p hyb --quiet && cd ..
-          echo "== corpus on PR head =="
-          python3 tools/corpus_harness.py --bin compiler/target/debug/hyb | tail -12
-          echo "== PR tests (hy-check) =="
-          cd compiler && cargo test -p hy-check --quiet 2>&1 | tail -25 || true
+          for N in ${{ steps.target.outputs.prs }}; do
+            echo "###### PR $N"
+            git fetch --no-tags "$UP" "+refs/pull/${N}/head:prhead-${N}" "main:upmain" >/dev/null 2>&1
+            git checkout -q "prhead-${N}"
+            git log -1 --format="PR${N} %h %ci %s"
+            git diff --stat "upmain"..."prhead-${N}" | tail -12
+            ( cd compiler && cargo build -p hyb --quiet )
+            cp compiler/target/debug/hyb "/tmp/hyb-${N}"
+            bash ci/battery.sh "/tmp/hyb-${N}" "pr${N}"
+          done
