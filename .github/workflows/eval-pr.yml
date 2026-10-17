@@ -72,4 +72,6 @@ jobs:
             ( cd compiler && cargo build -p hyb --quiet )
             cp compiler/target/debug/hyb "/tmp/hyb-${N}"
             bash /tmp/ci-assets/battery.sh "/tmp/hyb-${N}" "pr${N}" /tmp/ci-assets/fixtures/425
+            echo "== corpus regression for pr${N} =="
+            python3 tools/corpus_harness.py --bin "/tmp/hyb-${N}" 2>&1 | tail -10
           done
