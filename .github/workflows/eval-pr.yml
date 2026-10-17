@@ -63,11 +63,13 @@ jobs:
           set -e
           export PATH="$HOME/.cargo/bin:/usr/local/go/bin:$PATH"
           N="${{ steps.target.outputs.pr }}"
-          git fetch --no-tags origin "+refs/pull/${N}/head:prhead"
+          UP=https://github.com/limitlessprojects/Go-Hybrid.git
+          # refs/pull/N/head exists only on the upstream repo; origin here is the fork.
+          git fetch --no-tags "$UP" "+refs/pull/${N}/head:prhead" "main:upmain"
           git checkout -q prhead
           git log -1 --format='PR %h %ci %s'
-          echo "== files changed vs main =="
-          git diff --stat origin/main...prhead | tail -20
+          echo "== files changed vs upstream main =="
+          git diff --stat upmain...prhead | tail -20
           cd compiler && cargo build -p hyb --quiet && cd ..
           echo "== corpus on PR head =="
           python3 tools/corpus_harness.py --bin compiler/target/debug/hyb | tail -12
