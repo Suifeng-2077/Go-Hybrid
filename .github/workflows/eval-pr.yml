@@ -69,6 +69,9 @@ jobs:
           echo "== issue 460 narrowing =="
           bash /tmp/ci-assets/battery.sh /tmp/hyb-main i460 /tmp/ci-assets/fixtures/460
           bash /tmp/ci-assets/battery.sh /tmp/hyb-main i460b /tmp/ci-assets/fixtures/460b
+          echo "== const write probes =="
+          bash /tmp/ci-assets/battery.sh /tmp/hyb-main i460w /tmp/ci-assets/fixtures/460w
+          bash /tmp/ci-assets/race-scan.sh /tmp/hyb-main /tmp/ci-assets/fixtures/460w
 
       - name: Build each PR head and run battery
         if: steps.target.outputs.prs != ''
