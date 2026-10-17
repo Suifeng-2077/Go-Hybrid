@@ -58,6 +58,10 @@ jobs:
           bash /tmp/ci-assets/battery.sh /tmp/hyb-main main /tmp/ci-assets/fixtures/425
           echo "== race-scan on main =="
           bash /tmp/ci-assets/race-scan.sh /tmp/hyb-main
+          echo "== soundness variants: verdict =="
+          bash /tmp/ci-assets/battery.sh /tmp/hyb-main sound /tmp/ci-assets/fixtures/sound
+          echo "== soundness variants: race =="
+          bash /tmp/ci-assets/race-scan.sh /tmp/hyb-main /tmp/ci-assets/fixtures/sound
 
       - name: Build each PR head and run battery
         if: steps.target.outputs.prs != ''
