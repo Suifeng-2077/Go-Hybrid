@@ -1,0 +1,65 @@
+# Agent-side evaluation harness. Lives on a fork only; never proposed upstream.
+# Purpose: give the triage work a real build so verdicts are behavioural instead of textual.
+# Mirrors the pins from the upstream `compiler` job: Go 1.26.9 and rust 1.99.0.
+name: eval-pr
+
+on:
+  push:
+    branches: [ci-eval]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'PR number to evaluate (blank = baseline only)'
+        required: false
+        default: ''
+
+env:
+  PR_TARGET: ${{ github.event.inputs.pr }}
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned toolchains
+        run: |
+          set -e
+          curl -sSL -o /tmp/go.tgz https://go.dev/dl/go1.26.9.linux-amd64.tar.gz
+          sudo tar -C /usr/local -xzf /tmp/go.tgz
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.99.0
+          echo "/usr/local/go/bin:$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Baseline on main
+        run: |
+          set -e
+          export PATH="$HOME/.cargo/bin:/usr/local/go/bin:$PATH"
+          git log -1 --format='MAIN %h %ci %s'
+          cd compiler && cargo build -p hyb --quiet && cd ..
+          echo "== corpus on main =="
+          python3 tools/corpus_harness.py --bin compiler/target/debug/hyb | tail -8
+          if [ -f tools/differential_loop.py ]; then
+            echo "== differential loop present =="
+            python3 tools/differential_loop.py --help 2>&1 | head -12 || true
+          fi
+
+      - name: Evaluate PR head
+        if: env.PR_TARGET != ''
+        run: |
+          set -e
+          export PATH="$HOME/.cargo/bin:/usr/local/go/bin:$PATH"
+          N="$PR_TARGET"
+          git fetch --no-tags origin "+refs/pull/${N}/head:prhead"
+          git checkout -q prhead
+          git log -1 --format='PR %h %ci %s'
+          echo "== files changed vs main =="
+          git diff --stat origin/main...prhead | tail -20
+          cd compiler && cargo build -p hyb --quiet && cd ..
+          echo "== corpus on PR head =="
+          python3 tools/corpus_harness.py --bin compiler/target/debug/hyb | tail -12
+          echo "== PR tests (hy-check) =="
+          cd compiler && cargo test -p hy-check --quiet 2>&1 | tail -25 || true
