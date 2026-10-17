@@ -74,6 +74,8 @@ jobs:
           bash /tmp/ci-assets/race-scan.sh /tmp/hyb-main /tmp/ci-assets/fixtures/460w
           echo "== final narrowing =="
           bash /tmp/ci-assets/battery.sh /tmp/hyb-main i460c /tmp/ci-assets/fixtures/460c
+          echo "== discard binding probes =="
+          bash /tmp/ci-assets/battery.sh /tmp/hyb-main i460d /tmp/ci-assets/fixtures/460d
           echo "== issue 399 P0 probes =="
           bash /tmp/ci-assets/battery.sh /tmp/hyb-main i399 /tmp/ci-assets/fixtures/399
           bash /tmp/ci-assets/race-scan.sh /tmp/hyb-main /tmp/ci-assets/fixtures/399
