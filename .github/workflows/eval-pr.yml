@@ -1,4 +1,4 @@
-# Agent-side evaluation harness. Lives on a fork only; never proposed upstream.
+﻿# Agent-side evaluation harness. Lives on a fork only; never proposed upstream.
 # Decides behavioural questions the upstream diff cannot: build main and every named PR head,
 # then run one shared fixture battery against all of them.
 name: eval-pr
@@ -66,6 +66,8 @@ jobs:
           bash /tmp/ci-assets/battery.sh /tmp/hyb-main i429 /tmp/ci-assets/fixtures/429
           echo "== issue 429 reproducers: run =="
           bash /tmp/ci-assets/race-scan.sh /tmp/hyb-main /tmp/ci-assets/fixtures/429
+          echo "== issue 460 narrowing =="
+          bash /tmp/ci-assets/battery.sh /tmp/hyb-main i460 /tmp/ci-assets/fixtures/460
 
       - name: Build each PR head and run battery
         if: steps.target.outputs.prs != ''
